@@ -18,6 +18,12 @@ console.info('Talk is cheap. Show me the code. -- Linus Torvalds');
   >
     问题1
   </RouterLink>
+  <RouterLink
+    class="nav-cell"
+    to="/problem2"
+  >
+    问题2
+  </RouterLink>
   <RouterView />
 </template>
 
