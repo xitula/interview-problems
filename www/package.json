@@ -12,13 +12,11 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.0.6",
     "element-plus": "^2.2.11",
-    "sortablejs": "^1.15.0",
     "vue": "^3.2.37",
     "vue-router": "^4.1.2",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
-    "@types/sortablejs": "^1.13.0",
     "@typescript-eslint/eslint-plugin": "^5.31.0",
     "@typescript-eslint/parser": "^5.31.0",
     "@vitejs/plugin-vue": "^3.0.0",

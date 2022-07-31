@@ -1,42 +1,11 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import Sortable from 'sortablejs';
+import { reactive, ref } from 'vue';
 import orgs from '../assets/orgs.json';
 import members from '../assets/members.json';
+import NestedOrganization from '../components/NestedOrganization.vue';
+import { Org, Member, MemberOrigin } from '../types/Org'
 
-interface MemberOrigin {
-  name: string;
-  id: string;
-  age?: number;
-  status: string;
-  manager?: boolean;
-}
-
-interface Member {
-  name: string;
-  id: string;
-  age?: number;
-  status: boolean;
-  isManager: boolean;
-  type: 'member';
-}
-
-interface Org {
-  name: string;
-  id: string;
-  type: string;
-  parent?: string;
-  representation: string;
-  members?: string[];
-  membersData?: Member[];
-  children?: Org[];
-}
-
-const treeProps = {
-  children: 'children',
-  label: 'name',
-  class: 'tree-draggable'
-}
+const loaded = ref(false);
 
 function formatMembers(members: MemberOrigin[]): Member[] {
   return members.map((elem) => {
@@ -72,6 +41,8 @@ function mapMembers(membersData: Member[], orgsData: Org[]): Org[] {
   for (let i = 0; i < orgsData.length; i++) {
     if (orgsData[i].members) {
       orgsData[i].membersData = mapMember(membersData, orgsData[i].members as string[])
+    } else {
+      orgsData[i].membersData = [] as Member[]
     }
     if (orgsData[i].children instanceof Array<Org>) {
       orgsData[i].children = mapMembers(membersData, orgsData[i].children as Org[])
@@ -103,9 +74,7 @@ function moveToParent(parents: Org[], parent: string, currentIdx: number, origin
   return parents;
 }
 
-function getTree(): Org[] {
-  let orgsData = orgs as Org[];
-
+function getTree(orgsData: Org[]): Org[] {
   for (let i = orgsData.length - 1; i >= 0; i--) {
     const current = orgsData[i];
     const { parent } = current;
@@ -116,204 +85,42 @@ function getTree(): Org[] {
 
   return orgsData;
 }
+const orgsData = orgs as Org[];
 
-let treeData = getTree()
+let treeData = getTree(orgsData)
 const membersData = formatMembers(members);
 treeData = mapMembers(membersData, treeData)
-console.debug('treeData', treeData);
 
-function onGroupNameChange(): void {
-  console.debug('treeData', treeData);
+const backupTreeData = JSON.parse(JSON.stringify(treeData))
+
+const state = reactive({ refTreeData: [] as Org[] });
+state.refTreeData.push(...treeData)
+
+loaded.value = true;
+
+function restore(): void {
+  const newTree = JSON.parse(JSON.stringify(backupTreeData))
+  state.refTreeData.splice(0, state.refTreeData.length)
+  state.refTreeData.push(...newTree)
 }
 
-function onStatusChange(): void {
-  console.debug('treeData', treeData);
+function save(): void {
+  console.debug('save', state.refTreeData)
 }
-
-function onIsManagerChange(): void {
-  console.debug('treeData', treeData);
-}
-
-function createOrganizationSortable() {
-  const membersTables = document.querySelectorAll('.tree-draggable');
-  // console.debug('membersTables', membersTables);
-  membersTables.forEach(el => {
-    Sortable.create(el, {
-      group: 'organization',
-      animation: 500,
-      handle: '.tree-drag',
-      onStart(event: Event) {
-        console.debug('dragStart', event);
-      },
-      onEnd(event: Event) {
-        console.debug('dragEnd', event);
-      },
-      onAdd(event: Event) {
-        console.debug('dragAdd', event);
-      },
-      onRemove(event: Event) {
-        console.debug('dragRemove', event);
-      }
-    });
-  })
-}
-
-function createMemberSortable() {
-  const membersTables = document.querySelectorAll('.members-table tbody');
-  membersTables.forEach(el => {
-    Sortable.create(el, {
-      group: 'members',
-      animation: 500,
-      handle: '.member-drag',
-      onStart(event: Event) {
-        console.debug('dragStart', event);
-      },
-      onEnd(event: Event) {
-        console.debug('dragEnd', event);
-        console.debug('treeData', treeData);
-      },
-      onAdd(event: Event) {
-        console.debug('dragAdd', event);
-      },
-      onRemove(event: Event) {
-        console.debug('dragRemove', event);
-      }
-    });
-  })
-}
-
-onMounted(() => {
-  createOrganizationSortable()
-  createMemberSortable()
-})
-
 </script>
 
 <template>
-  <el-tree
-    :data="treeData"
-    :props="treeProps"
-    default-expand-all
-    :expand-on-click-node="false"
-    node-key="id"
-    class="custom-tree"
-    :indent="56"
-  >
-    <template #default="{ data }">
-      <div class="item-wrap">
-        <div class="org-head">
-          <el-icon
-            :size="24"
-            class="tree-drag"
-          >
-            <Rank />
-          </el-icon>
-          <el-input
-            v-model="data.name"
-            @change="onGroupNameChange"
-          >
-            <template #prepend>
-              组织名称
-            </template>
-          </el-input>
-        </div>
-        <el-table
-          class="members-table"
-          row-class-name="member-dragable"
-          :data="data.membersData"
-          :border="true"
-          row-key="id"
-        >
-          <el-table-column
-            label="移动"
-            width="56"
-          >
-            <el-icon
-              :size="20"
-              class="member-drag"
-            >
-              <Rank />
-            </el-icon>
-          </el-table-column>
-          <el-table-column
-            prop="name"
-            label="姓名"
-            width="180"
-          />
-          <el-table-column
-            prop="age"
-            label="年龄"
-            width="180"
-          />
-          <el-table-column
-            prop="status"
-            label="激活"
-            width="180"
-          >
-            <template #default="scoop">
-              <el-switch
-                v-model="scoop.row.status"
-                @change="onStatusChange"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="manager"
-            label="管理者"
-            width="180"
-          >
-            <template #default="scoop">
-              <el-switch
-                v-model="scoop.row.isManager"
-                :disabled="!scoop.row.status"
-                @change="onIsManagerChange"
-              />
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-    </template>
-  </el-tree>
+  <NestedOrganization
+    v-if="loaded"
+    :organizations="state.refTreeData"
+  />
+  <el-button @click="restore">
+    取消
+  </el-button>
+  <el-button @click="save">
+    保存
+  </el-button>
 </template>
 
 <style>
-.custom-tree {
-  text-align: start;
-}
-
-.custom-tree .el-tree-node__content {
-  align-items: start;
-  height: auto;
-}
-
-.item-wrap {
-  display: flex;
-  flex-direction: column;
-}
-
-.org-head {
-  display: flex;
-  align-items: center;
-}
-
-.member-dragable {
-  z-index: 99;
-}
-
-.tree-drag,
-.member-drag {
-  cursor: move;
-}
-
-.member-head {
-  display: flex;
-}
-
-.member-info {
-  display: flex;
-}
-
-.member-info>div {
-  margin-left: 2rem;
-}
 </style>
